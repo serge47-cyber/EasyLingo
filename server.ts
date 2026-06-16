@@ -7,8 +7,15 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let _filename = "";
+let _dirname = "";
+try {
+  _filename = fileURLToPath(import.meta.url);
+  _dirname = path.dirname(_filename);
+} catch (e) {
+  _filename = typeof __filename !== "undefined" ? __filename : "";
+  _dirname = typeof __dirname !== "undefined" ? __dirname : "";
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
