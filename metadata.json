@@ -1,0 +1,6 @@
+{
+  "name": "EasyEnglish",
+  "description": "An interactive English learning platform that analyzes textbook PDFs to generate customized, methodology-specific lessons and interactive activities.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
