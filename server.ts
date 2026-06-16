@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "15mb" }));
 
@@ -400,6 +400,13 @@ Return JSON only:
 
 // Setup Vite & static serving
 async function bootstrap() {
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("\x1b[33m%s\x1b[0m", "[WARNING] GEMINI_API_KEY environment variable is not set!");
+    console.warn("\x1b[33m%s\x1b[0m", "Please configure GEMINI_API_KEY in your deployment environment variables for the Gemini artificial intelligence capabilities to work correctly.");
+  } else {
+    console.log("\x1b[32m%s\x1b[0m", "[SUCCESS] GEMINI_API_KEY environment variable is successfully loaded.");
+  }
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
