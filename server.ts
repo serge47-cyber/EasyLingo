@@ -18,9 +18,14 @@ try {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "15mb" }));
+
+// Health Check Endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, status: "awake" });
+});
 
 // Initialize Google GenAI
 const ai = new GoogleGenAI({

@@ -1,8 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Upload, FileText, ChevronRight, Sparkles, AlertCircle, FileSpreadsheet, Layers, Book, RefreshCw } from "lucide-react";
 import { LessonPayload } from "../types";
 import { PRESET_LESSONS, getLocalizedPreset } from "../presets";
 import { LOCALIZATION_DICTIONARY, getLanguageAdjective } from "../localization";
+
+const sleepyServerLoc: Record<string, { title: string; desc: string; ready: string }> = {
+  uk: {
+    title: "Сервер прокидається (холодний старт)",
+    desc: "Оскільки додаток розміщено на безкоштовному хостингу, за відсутності активності сервер засинає. Ми вже відправили йому фоновий запит на активацію. Зачекайте близько 30-45 секунд — це буває лише при першому запуску, далі платформа працюватиме блискавично!",
+    ready: "Ура! Сервер успішно активний та готовий!"
+  },
+  en: {
+    title: "Server is waking up (cold start active)",
+    desc: "Since this platform is hosted on a free sandbox environment, the server spins down during relative inactivity. We have proactively signaled it to wake up. Please wait 30-45 seconds — this is details of the first run only, afterwards all features work instantly!",
+    ready: "Success! Server is fully active and ready!"
+  },
+  ro: {
+    title: "Serverul se trezește (pornire la rece)",
+    desc: "Deoarece aplicația este găzduită pe o platformă gratuită, serverul oprește când e inactiv. Am lansat deja pornirea lui în fundal. Vă rugăm să așteptați 30-45 de secunde; este o procedură unică, iar ulterior totul va funcționa instantaneu!",
+    ready: "Succes! Serverul este complet activ!"
+  },
+  es: {
+    title: "El servidor se está despertando (arranque en frío)",
+    desc: "Ya que la aplicación está alojada de forma gratuita, el servidor se suspende por inactividad. Ya lo estamos despertando automáticamente en segundo plano. Espere de 30-45 segundos — ¡esto sucede solo en la primera petición y luego responderá de inmediato!",
+    ready: "¡Éxito! ¡El servidor ya está listo!"
+  }
+};
 
 interface OnboardingProps {
   lang: "ua" | "en";
@@ -13,6 +36,71 @@ interface OnboardingProps {
 
 export default function Onboarding({ lang, nativeLang, targetLang, onLessonReady }: OnboardingProps) {
   const t = LOCALIZATION_DICTIONARY[nativeLang] || LOCALIZATION_DICTIONARY["uk"];
+
+  const [serverStatus, setServerStatus] = useState<"checking" | "awake" | "sleeping" | "error">("checking");
+  const [secondsWaking, setSecondsWaking] = useState<number>(0);
+
+  // Proactive background awake trigger
+  useEffect(() => {
+    let isMounted = true;
+    let timerId: any = null;
+    const startTime = Date.now();
+
+    const checkServerStatus = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // Fail fast (2s) to detect sleepy state
+        
+        const res = await fetch("/api/health", { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          if (isMounted) setServerStatus("awake");
+        } else {
+          throw new Error("unhealthy");
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setServerStatus("sleeping");
+
+        // Keep counting seconds
+        timerId = setInterval(() => {
+          setSecondsWaking(Math.floor((Date.now() - startTime) / 1000));
+        }, 1000);
+
+        // Keep pinging until it answers
+        const retryInterval = setInterval(async () => {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const res = await fetch("/api/health", { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (res.ok) {
+              clearInterval(retryInterval);
+              clearInterval(timerId);
+              if (isMounted) {
+                setServerStatus("awake");
+                // Clear the status notification after a few seconds of triumph!
+                setTimeout(() => {
+                  if (isMounted) setServerStatus("awake");
+                }, 4000);
+              }
+            }
+          } catch (e) {
+            // Still sleeping
+          }
+        }, 3000);
+      }
+    };
+
+    checkServerStatus();
+
+    return () => {
+      isMounted = false;
+      if (timerId) clearInterval(timerId);
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<"preset" | "upload" | "paste">("preset");
   const [selectedPresetId, setSelectedPresetId] = useState<string>("organic_farming");
@@ -234,6 +322,29 @@ export default function Onboarding({ lang, nativeLang, targetLang, onLessonReady
       </div>
 
       <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100 p-6">
+        {/* Sleeper server warming tracker */}
+        {serverStatus === "sleeping" && (() => {
+          const loc = sleepyServerLoc[nativeLang] || sleepyServerLoc["uk"];
+          return (
+            <div className="mb-6 p-4 bg-amber-50/70 border border-amber-200/60 rounded-xl flex items-start gap-3 animate-pulse">
+              <div className="text-lg leading-none mt-0.5">😴</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                  <span className="font-display font-bold text-amber-950 text-xs">
+                    {loc.title}
+                  </span>
+                  <span className="bg-amber-100 text-amber-900 text-[10px] font-mono font-black px-1.5 py-0.5 rounded-md shrink-0">
+                    ⏱️ {secondsWaking}s
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-900/80 leading-relaxed font-sans mt-0.5">
+                  {loc.desc}
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="flex border-b border-slate-200 mb-6 font-display">
           <button
             onClick={() => { setActiveTab("preset"); setErrorText(null); }}
