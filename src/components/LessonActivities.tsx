@@ -57,7 +57,7 @@ export default function LessonActivities({
   // Activity 2 State: Grammar & Exercises (Index 1)
   // ----------------------------------------------------
   const [scrambledIdx, setScrambledIdx] = useState<number>(0);
-  const [currentAssembly, setCurrentAssembly] = useState<string[]>([]);
+  const [currentAssembly, setCurrentAssembly] = useState<number[]>([]);
   const [grammarBlanksAnswers, setGrammarBlanksAnswers] = useState<string[]>(
     payload.grammarRule.fillInBlanks.map(() => "")
   );
@@ -370,17 +370,19 @@ export default function LessonActivities({
   // ----------------------------------------------------
   // Grammar arrange & check logic
   // ----------------------------------------------------
-  const toggleScrambledWord = (word: string) => {
-    if (currentAssembly.includes(word)) {
-      setCurrentAssembly(prev => prev.filter(w => w !== word));
+  const toggleScrambledWord = (wordIndex: number) => {
+    if (currentAssembly.includes(wordIndex)) {
+      setCurrentAssembly(prev => prev.filter(idx => idx !== wordIndex));
     } else {
-      setCurrentAssembly(prev => [...prev, word]);
+      setCurrentAssembly(prev => [...prev, wordIndex]);
     }
   };
 
   const checkScrambledSentence = () => {
     const correctSent = payload.grammarRule.sentenceBuild[scrambledIdx].correctSentence;
-    const studentAssembly = currentAssembly.join(" ").trim().replace(/\s*([,.!?])/g, "$1");
+    const currentWords = payload.grammarRule.sentenceBuild[scrambledIdx].words;
+    const assembledWords = currentAssembly.map(idx => currentWords[idx]);
+    const studentAssembly = assembledWords.join(" ").trim().replace(/\s*([,.!?])/g, "$1");
     // Normalize string spaces and trailing dots
     const isCorrect = studentAssembly.toLowerCase().replace(/\./g, "") === correctSent.toLowerCase().replace(/\./g, "");
 
@@ -911,27 +913,30 @@ export default function LessonActivities({
                           {isLanguageUA ? "Натискайте блоки нижче для побудови..." : "Click elements below to arrange sequence..."}
                         </span>
                       ) : (
-                        currentAssembly.map((word) => (
-                          <span
-                            key={word}
-                            onClick={() => toggleScrambledWord(word)}
-                            className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 active:scale-95 transition-all"
-                          >
-                            {word}
-                          </span>
-                        ))
+                        currentAssembly.map((wordIdx) => {
+                          const word = payload.grammarRule.sentenceBuild[scrambledIdx].words[wordIdx];
+                          return (
+                            <span
+                              key={wordIdx}
+                              onClick={() => toggleScrambledWord(wordIdx)}
+                              className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 active:scale-95 transition-all"
+                            >
+                              {word}
+                            </span>
+                          );
+                        })
                       )}
                     </div>
 
                     {/* Scrambled blocks deck */}
                     <div className="flex flex-wrap gap-2 pb-2">
-                      {payload.grammarRule.sentenceBuild[scrambledIdx].words.map((word) => {
-                        const isChosen = currentAssembly.includes(word);
+                      {payload.grammarRule.sentenceBuild[scrambledIdx].words.map((word, wordIdx) => {
+                        const isChosen = currentAssembly.includes(wordIdx);
                         return (
                           <button
-                            key={word}
+                            key={wordIdx}
                             disabled={isChosen}
-                            onClick={() => toggleScrambledWord(word)}
+                            onClick={() => toggleScrambledWord(wordIdx)}
                             className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all active:scale-95 select-none cursor-pointer ${isChosen ? "bg-slate-100 text-slate-300 border-slate-200" : "bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/20"}`}
                           >
                             {word}
